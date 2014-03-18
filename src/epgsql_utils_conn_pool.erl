@@ -1,10 +1,10 @@
 -module(epgsql_utils_conn_pool).
 
 %% API
--export_types([options/0]).
 -export([child_spec  /1]).
 -export([acquire_conn/0]).
 -export([release_conn/1]).
+-export_types([options/0]).
 
 %% Supervisor callbacks
 -export([init/1]).

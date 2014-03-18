@@ -11,7 +11,7 @@
 -export([is_exist             /2]).
 -export([create               /2]).
 -export([package_create       /2]).
--export([package_create       /3]). asdf
+-export([package_create       /3]).
 -export([create_or_update     /3]).
 -export([get                  /2]).
 -export([get_by_cond          /2]).
@@ -222,7 +222,6 @@ make_fields_cond([Field], Value) ->
     make_fields_cond([Field], [Value]);
 make_fields_cond(Field, Value) ->
     make_fields_cond([Field], [Value]).
-    
 
 pack_conds(Type, Conds) when is_list(Conds) ->
     pack_conds(Type, Conds, []);
@@ -259,7 +258,7 @@ make_update_proplist(Type, FieldsValues, Conds) ->
                                     FieldsValues
                                   ),
     epgsql_utils_sql:update(struct_info(table, Type), PackedFieldsValues, PackedConds).
-    
+
 make_delete(Type, Conds) ->
     PackedConds = pack_conds(Type, Conds),
     epgsql_utils_sql:delete(struct_info(table, Type), PackedConds).

@@ -1,9 +1,6 @@
-APPNAME = mc_banking
+APPNAME = epgsql_utils
 REBAR ?= $(shell which rebar 2>/dev/null || which ./rebar)
 DIALYZER = dialyzer
-
-TARGET_DIR = /opt/platbox/mts_mc_banking
-TARGET_USER = banking
 
 .PHONY: all compile deps clean distclean eunit release deploy
 
@@ -18,9 +15,6 @@ compile: deps
 dc:
 	$(REBAR) compile skip_deps=true
 
-start:
-	erl -pa apps/*/ebin deps/*/ebin -config dev -s banking -s reloader
-
 eunit: dc
 	$(REBAR) eunit skip_deps=true
 
@@ -30,17 +24,6 @@ clean: $(REBAR)
 distclean: clean
 	$(REBAR) delete-deps
 	rm -rfv plts
-
-datamodel: escriptize
-	$(REBAR) escriptize
-
-release: compile
-	mkdir -p rel_build
-	cd rel && rm -rf $(APPNAME) && ../$(REBAR) generate && rsync -ra $(APPNAME) ../rel_build
-
-deploy: release
-	mkdir -p $(TARGET_DIR)
-	rsync -ra rel_build/$(APPNAME)/* $(TARGET_DIR)/. && chown -R $(TARGET_USER):$(TARGET_USER) $(TARGET_DIR)
 
 ## dialyzer
 
