@@ -1,0 +1,11 @@
+{application, epgsql_utils, [
+    {description, "A collection of tools and helpers built around epgsql"},
+    {vsn, "0.1"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        epgsql,
+        poolboy
+    ]}
+]}.
