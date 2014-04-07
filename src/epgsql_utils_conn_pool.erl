@@ -36,7 +36,7 @@
 -spec child_spec(options()) -> supervisor:child_spec().
 child_spec(Options) ->
     {epgsql_utils_supervisor2, {epgsql_utils_supervisor2, start_link, [?MODULE, Options]},
-        {permanent, 0}, 5000, supervisor, [epgsql_utils_supervisor2]}.
+        permanent, infinity, supervisor, [epgsql_utils_supervisor2]}.
 
 acquire_conn() ->
     poolboy:checkout(?POOL_NAME).
