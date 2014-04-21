@@ -217,7 +217,7 @@ compose_fun(Name = pack_record, RecordsInfo, ModuleName) ->
                                 erl_syntax:atom(pack_record),
                                 [
                                     erl_syntax:tuple([
-                                        erl_syntax:atom(get(module_name)),
+                                        erl_syntax:atom(ModuleName),
                                         erl_syntax:atom(RecordName)
                                     ]),
                                     erl_syntax:variable('V')
