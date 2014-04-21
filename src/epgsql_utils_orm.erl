@@ -371,14 +371,14 @@ unpack_(date, Date={_, _, _}) ->
     Date;
 unpack_(json, Json)-> jiffy:decode(Json);
 unpack_(atom, Atom) when is_binary(Atom) -> binary_to_atom(Atom, utf8) ;
-unpack_(pos_integer, PosInteger) when is_integer(PosInteger), PosInteger > 0 -> PosInteger;
-unpack_(neg_integer, NegInteger) when is_integer(NegInteger), NegInteger < 0 -> NegInteger;
-unpack_(non_neg_integer, NonNegInteger) when is_integer(NonNegInteger), NonNegInteger >= 0 -> NonNegInteger;
+unpack_(pos_integer, PosInteger) when PosInteger > 0 -> unpack_(integer, PosInteger);
+unpack_(neg_integer, NegInteger) when NegInteger < 0 -> unpack_(integer, NegInteger);
+unpack_(non_neg_integer, NonNegInteger) when NonNegInteger >= 0 -> unpack_(integer, NonNegInteger);
 unpack_(number, Number) when is_float(Number); is_integer(Number) -> Number;
-unpack_(byte, Byte) when is_integer(Byte), Byte >= 1, Byte =< 255 -> Byte;
-unpack_(char, Char) when is_integer(Char), Char >= 0, Char =< 16#10ffff -> Char;
-unpack_(iodata, IoData) -> binary_to_list(IoData);
-unpack_(iolist, IoList) -> binary_to_list(IoList);
+unpack_(byte, Byte) when Byte >= 0, Byte =< 255 -> unpack_(integer, Byte);
+unpack_(char, Char) when Char >= 0, Char =< 16#10ffff -> unpack_(integer, Char);
+unpack_(iodata, IoData) -> unpack_(binary, IoData);
+unpack_(iolist, IoList) -> [unpack_(binary, IoList)];
 
 unpack_(Type, Data) ->
     error(badarg, [Type, Data]).

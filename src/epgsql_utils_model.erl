@@ -10,19 +10,16 @@ parse_transform(AST, _Options) ->
         {ModuleNameLine, ModuleName} = get_module_name(AST),
         RecordsMap = get_records_map(AST),
         RecordsInfo = get_records_info(AST, RecordsMap),
-        FullRecordsInfo = prepare_records_info({RecordsInfo, RecordsMap}),
 
         Exports = lists:map(fun({Name, Arity}) -> compose_export(Name, Arity) end, [{struct_info, 1}]),
-        Funcs = lists:map(fun(FunName) -> compose_fun(FunName, FullRecordsInfo, ModuleName) end, [struct_info, pack_record, unpack_record]),
+        Funcs = lists:map(fun(FunName) -> compose_fun(FunName, RecordsInfo, ModuleName) end, [struct_info, pack_record, unpack_record]),
 
         {Body, End} = lists:split(ModuleNameLine + 1, AST),
         AST1 = Body ++ Exports ++ End,
         {Head, Tail} = lists:split(length(AST1) - 1, AST1),
         Head ++ Funcs ++ Tail
     catch T:E ->
-        error(parsing_error,
-              io_lib:format("Parsing error ~p:~p with stacktrace: ~n~p", [T,E, erlang:get_stacktrace()])
-        )
+        error(format_error("Parsing error ~p:~p with stacktrace: ~n~p", [T,E, erlang:get_stacktrace()]))
     end.
 
 -spec parse_record_fields([tuple()]) -> {[atom()], [{atom(), list()}]}.
@@ -60,7 +57,7 @@ parse_field_type({type,_ ,Type,[]}) ->
 parse_field_type({remote_type, _ ,[{atom, _, M}, {atom, _, F}, []]}) ->
     {{M, F}, []};
 parse_field_type(T) ->
-    error(parse_unknown_type, T).
+    error(format_error("Unknown type~p", [T])).
 
 -spec is_key_type(list()) -> boolean().
 is_key_type(Params) ->
@@ -68,19 +65,23 @@ is_key_type(Params) ->
 
 -spec get_module_name(nonempty_maybe_improper_list()) -> atom().
 get_module_name([]) ->
-    error(no_module_name);
+    error(format_error("No module name is declared", []));
 get_module_name([{attribute, Line, module, Name}| _]) ->
     {Line, Name};
 get_module_name([_|T]) ->
     get_module_name(T).
 
 -spec get_records_map(list()) -> list().
-get_records_map([]) ->
-    error(no_record_map);
-get_records_map([{attribute, _, map_record, Map}| _]) ->
-    Map;
-get_records_map([_|T]) ->
-    get_records_map(T).
+get_records_map(AST) ->
+    lists:foldl(fun(X, Acc) ->
+            case X of
+                {attribute, _, export_record_model, Map} -> Acc ++ Map;
+                _ -> Acc
+            end
+        end,
+        [],
+        AST
+    ).
 
 -spec get_records_info(erl_syntax:syntaxTree(), list()) -> list().
 get_records_info(AST, RecordsMap) ->
@@ -95,9 +96,11 @@ get_records_info(AST, RecordsMap) ->
         end,
         RecordsMap
     )),
-    case length(LostRecords) of
-        0 -> RecordsInfo;
-        _ -> error(no_model_declaration, [LostRecords])
+    case LostRecords of
+        [] ->
+            RecordsInfo;
+        _ ->
+            error(format_error("Undeclared records ~p", [LostRecords]))
     end.
 
 -spec get_records_info_(tuple(), list(), list()) ->list().
@@ -108,20 +111,11 @@ get_records_info_({attribute, _ ,type, {{record, RecordName}, RecordFields, _}},
         undefined ->
             Acc;
         _ ->
-            ParsedInfo = parse_record_fields(RecordFields),
-            Acc ++ [{RecordName, ParsedInfo}]
+            {Keys, Types} = parse_record_fields(RecordFields),
+            Acc ++ [{RecordName, {Keys, Types, Table}}]
     end;
 get_records_info_(_, Acc, _RecordMap) ->
     Acc.
-
--spec prepare_records_info({list(), list()}) -> list().
-prepare_records_info({RecordsInfo, RecordsMap}) ->
-    lists:map(fun({RecordName, {Keys, Types}})->
-            Table = proplists:get_value(table, proplists:get_value(RecordName, RecordsMap)),
-            {RecordName, {Keys, Types, Table}}
-        end,
-        RecordsInfo
-    ).
 
 -spec compose_fun(atom(), list(), atom()) -> erl_syntax:syntaxTree().
 compose_fun(Name = struct_info, RecordsInfo, _) ->
@@ -182,64 +176,62 @@ compose_fun(Name = struct_info, RecordsInfo, _) ->
     ));
 
 compose_fun(Name = pack_record, RecordsInfo, ModuleName) ->
-    Guards = lists:foldl(fun({RecordName, _}, Acc) ->
-            Acc ++ [[erl_syntax:infix_expr(
-                        erl_syntax:variable('T'),
-                        erl_syntax:operator('=:='),
-                        erl_syntax:atom(RecordName)
-            )]]
+    Clauses = lists:foldl(fun({RecordName, _}, Acc) ->
+            Acc ++[
+                erl_syntax:clause(
+                    [
+                        erl_syntax:tuple([erl_syntax:atom(RecordName), erl_syntax:variable('F')]),
+                        erl_syntax:variable('V')
+                    ],
+                    [],
+                    [
+                        erl_syntax:block_expr([
+                            erl_syntax:application(
+                                erl_syntax:atom(epgsql_utils_orm),
+                                erl_syntax:atom(pack_record_field),
+                                [
+                                    erl_syntax:tuple([
+                                        erl_syntax:tuple([
+                                            erl_syntax:atom(ModuleName),
+                                            erl_syntax:atom(RecordName)
+                                        ]),
+                                        erl_syntax:variable('F')
+                                    ]),
+                                    erl_syntax:variable('V')
+                                ]
+                            )
+                        ])
+                    ]
+                ),
+                erl_syntax:clause(
+                    [
+                        erl_syntax:atom(RecordName),
+                        erl_syntax:variable('V')
+                    ],
+                    [],
+                    [
+                        erl_syntax:block_expr([
+                            erl_syntax:application(
+                                erl_syntax:atom(epgsql_utils_orm),
+                                erl_syntax:atom(pack_record),
+                                [
+                                    erl_syntax:tuple([
+                                        erl_syntax:atom(get(module_name)),
+                                        erl_syntax:atom(RecordName)
+                                    ]),
+                                    erl_syntax:variable('V')
+                                ]
+                            )
+                        ])
+                    ]
+                )
+            ]
         end,
         [],
         RecordsInfo
     ),
-    Clauses = [
-        erl_syntax:clause(
-            [
-                erl_syntax:tuple([erl_syntax:variable('T'), erl_syntax:variable('F')]),
-                erl_syntax:variable('V')
-            ],
-            Guards,
-            [
-                erl_syntax:block_expr([
-                    erl_syntax:application(
-                        erl_syntax:atom(epgsql_utils_orm),
-                        erl_syntax:atom(pack_record_field),
-                        [
-                            erl_syntax:tuple([
-                                erl_syntax:tuple([
-                                    erl_syntax:atom(ModuleName),
-                                    erl_syntax:variable('T')
-                                ]),
-                                erl_syntax:variable('F')
-                            ]),
-                            erl_syntax:variable('V')
-                        ]
-                    )
-                ])
-            ]
-        ),
-        erl_syntax:clause(
-            [
-                erl_syntax:variable('T'),
-                erl_syntax:variable('V')
-            ],
-            Guards,
-            [
-                erl_syntax:block_expr([
-                    erl_syntax:application(
-                        erl_syntax:atom(epgsql_utils_orm),
-                        erl_syntax:atom(pack_record),
-                        [
-                            erl_syntax:tuple([
-                                erl_syntax:atom(get(module_name)),
-                                erl_syntax:variable('T')
-                            ]),
-                            erl_syntax:variable('V')
-                        ]
-                    )
-                ])
-            ]
-        ),
+
+    FullClauses = Clauses ++ [
         erl_syntax:clause(
             [
                 erl_syntax:variable('T'),
@@ -260,70 +252,67 @@ compose_fun(Name = pack_record, RecordsInfo, ModuleName) ->
             ]
         )
     ],
-    FullClauses = Clauses,
     erl_syntax:revert(erl_syntax:function(
         erl_syntax:atom(Name),
         FullClauses
     ));
 compose_fun(Name = unpack_record, RecordsInfo, ModuleName) ->
-    Guards = lists:foldl(fun({RecordName, _}, Acc) ->
-            Acc ++ [[erl_syntax:infix_expr(
-                        erl_syntax:variable('T'),
-                        erl_syntax:operator('=:='),
-                        erl_syntax:atom(RecordName)
-            )]]
+    Clauses = lists:foldl(fun({RecordName, _}, Acc) ->
+            Acc ++[
+                erl_syntax:clause(
+                    [
+                        erl_syntax:tuple([erl_syntax:atom(RecordName), erl_syntax:variable('F')]),
+                        erl_syntax:variable('V')
+                    ],
+                    [],
+                    [
+                        erl_syntax:block_expr([
+                            erl_syntax:application(
+                                erl_syntax:atom(epgsql_utils_orm),
+                                erl_syntax:atom(unpack_record_field),
+                                [
+                                    erl_syntax:tuple([
+                                        erl_syntax:tuple([
+                                            erl_syntax:atom(ModuleName),
+                                            erl_syntax:atom(RecordName)
+                                        ]),
+                                        erl_syntax:variable('F')
+                                    ]),
+                                    erl_syntax:variable('V')
+                                ]
+                            )
+                        ])
+                    ]
+                ),
+                erl_syntax:clause(
+                    [
+                        erl_syntax:atom(RecordName),
+                        erl_syntax:variable('V')
+                    ],
+                    [],
+                    [
+                        erl_syntax:block_expr([
+                            erl_syntax:application(
+                                erl_syntax:atom(epgsql_utils_orm),
+                                erl_syntax:atom(unpack_record),
+                                [
+                                    erl_syntax:tuple([
+                                        erl_syntax:atom(ModuleName),
+                                        erl_syntax:atom(RecordName)
+                                    ]),
+                                    erl_syntax:variable('V')
+                                ]
+                            )
+                        ])
+                    ]
+                )
+            ]
         end,
         [],
         RecordsInfo
     ),
-    Clauses = [
-        erl_syntax:clause(
-            [
-                erl_syntax:tuple([erl_syntax:variable('T'), erl_syntax:variable('F')]),
-                erl_syntax:variable('V')
-            ],
-            Guards,
-            [
-                erl_syntax:block_expr([
-                    erl_syntax:application(
-                        erl_syntax:atom(epgsql_utils_orm),
-                        erl_syntax:atom(unpack_record_field),
-                        [
-                            erl_syntax:tuple([
-                                erl_syntax:tuple([
-                                    erl_syntax:atom(ModuleName),
-                                    erl_syntax:variable('T')
-                                ]),
-                                erl_syntax:variable('F')
-                            ]),
-                            erl_syntax:variable('V')
-                        ]
-                    )
-                ])
-            ]
-        ),
-        erl_syntax:clause(
-            [
-                erl_syntax:variable('T'),
-                erl_syntax:variable('V')
-            ],
-            Guards,
-            [
-                erl_syntax:block_expr([
-                    erl_syntax:application(
-                        erl_syntax:atom(epgsql_utils_orm),
-                        erl_syntax:atom(unpack_record),
-                        [
-                            erl_syntax:tuple([
-                                erl_syntax:atom(ModuleName),
-                                erl_syntax:variable('T')
-                            ]),
-                            erl_syntax:variable('V')
-                        ]
-                    )
-                ])
-            ]
-        ),
+
+    FullClauses = Clauses ++ [
         erl_syntax:clause(
             [
                 erl_syntax:variable('T'),
@@ -344,7 +333,6 @@ compose_fun(Name = unpack_record, RecordsInfo, ModuleName) ->
             ]
         )
     ],
-    FullClauses = Clauses,
     erl_syntax:revert(erl_syntax:function(
         erl_syntax:atom(Name),
         FullClauses
@@ -360,3 +348,6 @@ compose_export(Name, Arity) ->
             ])
         ]
     )).
+
+format_error(Format, Args) ->
+    iolist_to_binary(io_lib:format(Format, Args)).
