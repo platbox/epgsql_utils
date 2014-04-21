@@ -336,14 +336,14 @@ pack_(date, Date={_, _, _}) ->
     Date;
 pack_(json, JsonTerm) -> jiffy:encode(JsonTerm);
 pack_(atom, Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
-pack_(pos_integer, PosInteger) when is_integer(PosInteger), PosInteger > 0 -> PosInteger;
-pack_(neg_integer, NegInteger) when is_integer(NegInteger), NegInteger < 0 -> NegInteger;
-pack_(non_neg_integer, NonNegInteger) when is_integer(NonNegInteger), NonNegInteger >= 0 -> NonNegInteger;
+pack_(pos_integer, PosInteger) when PosInteger > 0 -> pack_(integer, PosInteger);
+pack_(neg_integer, NegInteger) when NegInteger < 0 -> pack_(integer, NegInteger);
+pack_(non_neg_integer, NonNegInteger) when NonNegInteger >= 0 -> pack_(integer, NonNegInteger);
 pack_(number, Number) when is_float(Number); is_integer(Number) -> Number;
-pack_(byte, Byte) when is_integer(Byte), Byte >= 1, Byte =< 255 -> Byte;
-pack_(char, Char) when is_integer(Char), Char >= 0, Char =< 16#10ffff -> Char;
-pack_(io_data, IoData) -> list_to_binary(IoData);
-pack_(io_list, IoList) -> list_to_binary(IoList);
+pack_(byte, Byte) when Byte >= 0, Byte =< 255 -> pack_(integer, Byte);
+pack_(char, Char) when Char >= 0, Char =< 16#10ffff -> pack_(integer, Char);
+pack_(iodata, IoData) -> pack_(binary, IoData);
+pack_(iolist, IoList) -> pack_(binary, IoList);
 
 pack_(Type, Data) ->
     error(badarg, [Type, Data]).
@@ -377,8 +377,8 @@ unpack_(non_neg_integer, NonNegInteger) when is_integer(NonNegInteger), NonNegIn
 unpack_(number, Number) when is_float(Number); is_integer(Number) -> Number;
 unpack_(byte, Byte) when is_integer(Byte), Byte >= 1, Byte =< 255 -> Byte;
 unpack_(char, Char) when is_integer(Char), Char >= 0, Char =< 16#10ffff -> Char;
-unpack_(io_data, IoData) -> binary_to_list(IoData);
-unpack_(io_list, IoList) -> binary_to_list(IoList);
+unpack_(iodata, IoData) -> binary_to_list(IoData);
+unpack_(iolist, IoList) -> binary_to_list(IoList);
 
 unpack_(Type, Data) ->
     error(badarg, [Type, Data]).
