@@ -1,5 +1,5 @@
 %
-% Basic model parse ms_transform
+% Basic model parse_transform
 
 -module(epgsql_utils_model).
 -export([parse_transform/2]).
@@ -18,8 +18,9 @@ parse_transform(AST, _Options) ->
         AST1 = Body ++ Exports ++ End,
         {Head, Tail} = lists:split(length(AST1) - 1, AST1),
         Head ++ Funcs ++ Tail
-    catch T:E ->
-        error(format_error("Parsing error ~p:~p with stacktrace: ~n~p", [T,E, erlang:get_stacktrace()]))
+    catch _T:E ->
+        io:format("~s~n", [format_error("Parsing error: ~s", [E])]),
+        exit(parsing_error)
     end.
 
 -spec parse_record_fields([tuple()]) -> {[atom()], [{atom(), list()}]}.
@@ -57,7 +58,7 @@ parse_field_type({type,_ ,Type,[]}) ->
 parse_field_type({remote_type, _ ,[{atom, _, M}, {atom, _, F}, []]}) ->
     {{M, F}, []};
 parse_field_type(T) ->
-    error(format_error("Unknown type~p", [T])).
+    error(format_error("Unknown type ~p", [T])).
 
 -spec is_key_type(list()) -> boolean().
 is_key_type(Params) ->
