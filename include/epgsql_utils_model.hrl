@@ -4,5 +4,6 @@
 -type key(T) :: T.
 -type date() :: calendar:date().
 -type datetime() :: calendar:datetime().
+-type json  () :: [value()] | object().
 
 -endif.

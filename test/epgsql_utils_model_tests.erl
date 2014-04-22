@@ -1,5 +1,5 @@
 %%
-%% Static manager tests
+%% epgsql_utils_model tests
 
 -module(epgsql_utils_model_tests).
 
