@@ -208,7 +208,7 @@ get_last_create_id() ->
 %% utils
 make_fields_cond(Fields, Values) when is_list(Values), is_list(Fields) ->
     case length(Fields) =:= length(Values) of
-        false -> 
+        false ->
             error(badarg, [Fields, Values]);
         true  ->
             lists:map(
@@ -249,7 +249,7 @@ make_update_object(Type, Object) ->
 
 make_update_object(Type, Object, Conds) ->
     PackedObject = pack(Type, Object),
-    PackedConds  = pack_conds(Type, Conds), 
+    PackedConds  = pack_conds(Type, Conds),
     epgsql_utils_sql:update(struct_info(table, Type), PackedObject, PackedConds).
 
 make_update_proplist(Type, FieldsValues, Conds) ->
@@ -335,6 +335,15 @@ pack_(term, Term) -> term_to_binary(Term);
 pack_(date, Date={_, _, _}) ->
     Date;
 pack_(json, JsonTerm) -> jiffy:encode(JsonTerm);
+pack_(atom, Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
+pack_(pos_integer, PosInteger) when PosInteger > 0 -> pack_(integer, PosInteger);
+pack_(neg_integer, NegInteger) when NegInteger < 0 -> pack_(integer, NegInteger);
+pack_(non_neg_integer, NonNegInteger) when NonNegInteger >= 0 -> pack_(integer, NonNegInteger);
+pack_(number, Number) when is_float(Number); is_integer(Number) -> Number;
+pack_(byte, Byte) when Byte >= 0, Byte =< 255 -> pack_(integer, Byte);
+pack_(char, Char) when Char >= 0, Char =< 16#10ffff -> pack_(integer, Char);
+pack_(iodata, IoData) -> pack_(binary, IoData);
+pack_(iolist, IoList) -> pack_(binary, IoList);
 
 pack_(Type, Data) ->
     error(badarg, [Type, Data]).
@@ -361,5 +370,15 @@ unpack_(term, Term) -> binary_to_term(Term);
 unpack_(date, Date={_, _, _}) ->
     Date;
 unpack_(json, Json)-> jiffy:decode(Json);
+unpack_(atom, Atom) when is_binary(Atom) -> binary_to_atom(Atom, utf8) ;
+unpack_(pos_integer, PosInteger) when PosInteger > 0 -> unpack_(integer, PosInteger);
+unpack_(neg_integer, NegInteger) when NegInteger < 0 -> unpack_(integer, NegInteger);
+unpack_(non_neg_integer, NonNegInteger) when NonNegInteger >= 0 -> unpack_(integer, NonNegInteger);
+unpack_(number, Number) when is_float(Number); is_integer(Number) -> Number;
+unpack_(byte, Byte) when Byte >= 0, Byte =< 255 -> unpack_(integer, Byte);
+unpack_(char, Char) when Char >= 0, Char =< 16#10ffff -> unpack_(integer, Char);
+unpack_(iodata, IoData) -> unpack_(binary, IoData);
+unpack_(iolist, IoList) -> [unpack_(binary, IoList)];
+
 unpack_(Type, Data) ->
     error(badarg, [Type, Data]).
