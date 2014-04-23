@@ -3,9 +3,9 @@
 %% API
 -export([do_query      /1]).
 -export([do_query      /2]).
--export([do            /1]).
--export([do_transaction/1]).
--export([do_transaction/3]).
+-export([do            /2]).
+-export([do_transaction/2]).
+-export([do_transaction/4]).
 
 -define(RETRYING_DELAY, 250).
 
@@ -20,32 +20,32 @@ do_query(Q, Args) when is_binary(Q) ->
     do_equery_(get_and_check_context(), Q, Args).
 
 
-do(Fun) ->
-    do_transaction(Fun).
+do(Fun, PoolName) ->
+    do_transaction(Fun, PoolName).
 
-do_transaction(Fun) ->
-    do_transaction(Fun, 2 * 3600, 1000).
+do_transaction(Fun, PoolName) ->
+    do_transaction(Fun, 2 * 3600, 1000, PoolName).
 
-do_transaction(_Fun, 0, _Delay) ->
+do_transaction(_Fun, 0, _Delay, _PoolName) ->
     throw({epgsql_error, 'transaction retrying attempts limit hit'});
-do_transaction(Fun, Retries, Delay) ->
+do_transaction(Fun, Retries, Delay, PoolName) ->
     check_context_is_empty(),
-    C = acquire_conn(),
+    C = acquire_conn(PoolName),
     try
         transaction('begin'),
         R = Fun(),
         transaction(commit),
-        release_conn(C),
+        release_conn(C, PoolName),
         R
     catch
         throw:{epgsql_error, {unexpected_error, _}} ->
-            release_conn(C),
+            release_conn(C, PoolName),
             lager:warning("epgsql connection error, retrying after ~p ms...", [Delay]),
             timer:sleep(Delay),
-            do_transaction(Fun, Retries-1, Delay);
+            do_transaction(Fun, Retries-1, Delay, PoolName);
         T:E ->
             catch transaction(rollback),
-            release_conn(C),
+            release_conn(C, PoolName),
             erlang:raise(T, E, erlang:get_stacktrace())
     end.
 
@@ -104,21 +104,21 @@ get_context() ->
 put_context(C) ->
     put(epgsql_utils_querying_context, C).
 
-acquire_conn() ->
+acquire_conn(PoolName) ->
     try
-        C = epgsql_utils_conn_pool:acquire_conn(),
+        C = epgsql_utils_conn_pool:acquire_conn(PoolName),
         put_context(C),
         C
     catch
         exit:{noproc,_} ->
             timer:sleep(?RETRYING_DELAY),
-            acquire_conn()
+            acquire_conn(PoolName)
     end.
 
-release_conn(C) ->
+release_conn(C, PoolName) ->
     try
         put_context(undefined),
-        epgsql_utils_conn_pool:release_conn(C)
+        epgsql_utils_conn_pool:release_conn(C, PoolName)
     catch
         exit:{noproc,_} -> ok
     end.

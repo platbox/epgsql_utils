@@ -2,8 +2,8 @@
 
 %% API
 -export([child_spec  /1]).
--export([acquire_conn/0]).
--export([release_conn/1]).
+-export([acquire_conn/1]).
+-export([release_conn/2]).
 -export_types([options/0]).
 
 %% Supervisor callbacks
@@ -11,8 +11,6 @@
 
 %% poolboy worker callbacks
 -export([start_link/1]).
-
--define(POOL_NAME, ?MODULE).
 
 %%
 %% API
@@ -29,6 +27,7 @@
       {size        , pos_integer()}
     | {max_overflow, pos_integer()}
     | {conn_params , conn_params()}
+    | {pool_name   , atom()}
 .
 -type options() :: list(option()).
 
@@ -38,11 +37,11 @@ child_spec(Options) ->
     {epgsql_utils_supervisor2, {epgsql_utils_supervisor2, start_link, [?MODULE, Options]},
         permanent, infinity, supervisor, [epgsql_utils_supervisor2]}.
 
-acquire_conn() ->
-    poolboy:checkout(?POOL_NAME).
+acquire_conn(PoolName) ->
+    poolboy:checkout(PoolName).
 
-release_conn(C) ->
-    poolboy:checkin(?POOL_NAME, C).
+release_conn(C, PoolName) ->
+    poolboy:checkin(PoolName, C).
 
 %%
 %% Supervisor callbacks
@@ -51,13 +50,14 @@ init(Options) ->
     Size        = proplists:get_value(size        , Options, 10),
     MaxOverflow = proplists:get_value(max_overflow, Options, 5 ),
     ConnParams  = proplists:get_value(conn_params , Options, []),
+    PoolName    = proplists:get_value(pool_name   , Options),
     PoolArgs  = [
-        {name         , {local, ?POOL_NAME}},
+        {name         , {local, PoolName}},
         {worker_module, ?MODULE            },
         {size         , Size               },
         {max_overflow , MaxOverflow        }
     ],
-    PoolSpec = {_Ref, _, Strategy, _, _, _} = poolboy:child_spec(?POOL_NAME, PoolArgs, ConnParams),
+    PoolSpec = {_Ref, _, Strategy, _, _, _} = poolboy:child_spec(PoolName, PoolArgs, ConnParams),
     TunedPoolSpec = setelement(3, PoolSpec, {Strategy, 0}),
     {ok, {{one_for_one, 2, 2}, [TunedPoolSpec]}}.
 
