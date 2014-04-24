@@ -20,32 +20,32 @@ do_query(Q, Args) when is_binary(Q) ->
     do_equery_(get_and_check_context(), Q, Args).
 
 
-do(Fun, PoolName) ->
-    do_transaction(Fun, PoolName).
+do(PoolName, Fun) ->
+    do_transaction(PoolName, Fun).
 
-do_transaction(Fun, PoolName) ->
-    do_transaction(Fun, 2 * 3600, 1000, PoolName).
+do_transaction(PoolName, Fun) ->
+    do_transaction(PoolName, Fun, 2 * 3600, 1000).
 
-do_transaction(_Fun, 0, _Delay, _PoolName) ->
+do_transaction(_PoolName, _Fun, 0, _Delay) ->
     throw({epgsql_error, 'transaction retrying attempts limit hit'});
-do_transaction(Fun, Retries, Delay, PoolName) ->
+do_transaction(PoolName, Fun, Retries, Delay) ->
     check_context_is_empty(),
     C = acquire_conn(PoolName),
     try
         transaction('begin'),
         R = Fun(),
         transaction(commit),
-        release_conn(C, PoolName),
+        release_conn(PoolName, C),
         R
     catch
         throw:{epgsql_error, {unexpected_error, _}} ->
-            release_conn(C, PoolName),
+            release_conn(PoolName, C),
             lager:warning("epgsql connection error, retrying after ~p ms...", [Delay]),
             timer:sleep(Delay),
-            do_transaction(Fun, Retries-1, Delay, PoolName);
+            do_transaction(PoolName, Fun, Retries-1, Delay);
         T:E ->
             catch transaction(rollback),
-            release_conn(C, PoolName),
+            release_conn(PoolName, C),
             erlang:raise(T, E, erlang:get_stacktrace())
     end.
 
@@ -95,7 +95,7 @@ get_and_check_context() ->
 check_context_is_empty() ->
     case get_context() of
         undefined -> ok;
-        C         -> exit({context_is_not_empy, C})
+        C         -> exit({context_is_not_empty, C})
     end.
 
 get_context() ->
@@ -115,10 +115,10 @@ acquire_conn(PoolName) ->
             acquire_conn(PoolName)
     end.
 
-release_conn(C, PoolName) ->
+release_conn(PoolName, C) ->
     try
         put_context(undefined),
-        epgsql_utils_conn_pool:release_conn(C, PoolName)
+        epgsql_utils_conn_pool:release_conn(PoolName, C)
     catch
         exit:{noproc,_} -> ok
     end.
