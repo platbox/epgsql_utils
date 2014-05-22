@@ -35,9 +35,6 @@
 -export([pack  /2]).
 -export([unpack/2]).
 
--export([match_field_nums/3]).
--export([get_record_keys/2]).
-
 %% TODO
 %%  - сделать маппинг стр
 
@@ -385,26 +382,3 @@ unpack_(iolist, IoList) -> [unpack_(binary, IoList)];
 
 unpack_(Type, Data) ->
     error(badarg, [Type, Data]).
-
--spec get_record_keys(atom(), tuple()) -> list({atom(), term()}).
-get_record_keys(Module, Record) ->
-    RecordName = element(1, Record),
-    Fields = Module:struct_info({RecordName, fields}),
-    IDFieldNames = Module:struct_info({RecordName, keys}),
-    lists:map(
-        fun({FieldName, N}) ->
-            RecordFieldN = N + 1,    %Record = {RecordName, Field1, Field2, Field3,..., FieldN}.
-            {FieldName, element(RecordFieldN, Record)}
-        end,
-        match_field_nums(1, IDFieldNames, Fields)
-    ).
-
--spec match_field_nums(integer(), list(), list({_, _})) -> list({_, _}).
-match_field_nums(N, [F | Rest], [{F, _} | RestFields]) ->
-    [{F, N} | match_field_nums(N + 1, Rest, RestFields)];
-
-match_field_nums(N, IDFieldNames, [_ | RestFields]) ->
-    match_field_nums(N + 1, IDFieldNames, RestFields);
-
-match_field_nums(_, [], _Fields) ->
-    [].
