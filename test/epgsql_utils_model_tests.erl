@@ -48,3 +48,18 @@ pack_external_type_test() ->
     Record = #dancer{id = 42, hobby = {hooker, <<"Tracey">>}},
     Packed = epgsql_utils_orm:pack({?MODULE, dancer}, Record),
     ?assertEqual(Record, epgsql_utils_orm:unpack({?MODULE, dancer}, Packed)).
+
+match_field_nums_test() ->
+    Fields = ?MODULE:struct_info({dancer, fields}),
+    IDFieldNames = [id, name, age, hobby],
+    Matched = epgsql_utils_orm:match_field_nums(1, IDFieldNames, Fields),
+    ?assertEqual(1, proplists:get_value(id, Matched)),
+    ?assertEqual(2, proplists:get_value(name, Matched)),
+    ?assertEqual(3, proplists:get_value(age, Matched)),
+    ?assertEqual(4, proplists:get_value(hobby, Matched)).
+
+
+get_record_keys_test() ->
+    Record = #dancer{id = 99, hobby = games},
+    Keys = epgsql_utils_orm:get_record_keys(?MODULE, Record),
+    ?assertEqual([{id, 99}], Keys).
