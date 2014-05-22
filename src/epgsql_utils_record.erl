@@ -5,10 +5,9 @@
 -export([get_record_keys/2]).
 
 -spec get_record_keys(atom(), tuple()) -> list({atom(), term()}).
-get_record_keys(Mod, Record) ->
-    RecordName = element(1, Record),
-    Fields = Mod:struct_info({RecordName, fields}),
-    Keys = Mod:struct_info({RecordName, keys}),
+get_record_keys({Mod, LocalType}, Record) when LocalType =:= element(1, Record)->
+    Fields = Mod:struct_info({LocalType, fields}),
+    Keys = Mod:struct_info({LocalType, keys}),
     lists:map(
         fun({FieldName, N}) ->
             RecordFieldN = N + 1,    %Record = {RecordName, Field1, Field2, Field3,..., FieldN}.
