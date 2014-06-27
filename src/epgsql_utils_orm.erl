@@ -369,7 +369,7 @@ unpack_(binary, Binary) when is_binary(Binary) -> Binary;
 unpack_(term, Term) -> binary_to_term(Term);
 unpack_(date, Date={_, _, _}) ->
     Date;
-unpack_(json, Json)-> jiffy:decode(Json);
+unpack_(json, Json)-> jiffy:decode(Json, [return_maps]);
 unpack_(atom, Atom) when is_binary(Atom) -> binary_to_atom(Atom, utf8) ;
 unpack_(pos_integer, PosInteger) when PosInteger > 0 -> unpack_(integer, PosInteger);
 unpack_(neg_integer, NegInteger) when NegInteger < 0 -> unpack_(integer, NegInteger);
