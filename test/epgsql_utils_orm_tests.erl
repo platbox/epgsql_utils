@@ -22,7 +22,6 @@ pack_test() ->
             ]},
             <<"{\"people\":[{\"name\":\"Tommy\",\"job\":\"Developer\"},{\"name\":\"Alice\",\"job\":\"Housewife\"}]}">>
         }
-
     ],
     lists:foreach(
         fun({Type, Before, After}) ->

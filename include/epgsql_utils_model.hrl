@@ -7,7 +7,7 @@
 -type datetime() :: calendar:datetime().
 
 -type json_value() :: 'null' | binary() | boolean() | number() | [json_value()] | json_object().
--type json_object() :: {[{binary(), json_value()}]} | #{atom() | binary() => json_value()}.
--type json() :: json_value().
+-type json_object() :: #{atom() | binary() => json_value()}.
+-type json() :: json_object().
 
 -endif.

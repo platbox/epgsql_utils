@@ -334,7 +334,7 @@ pack_(binary, IOList) when is_list(IOList) -> iolist_to_binary(IOList);
 pack_(term, Term) -> term_to_binary(Term);
 pack_(date, Date={_, _, _}) ->
     Date;
-pack_(json, JsonTerm) -> jiffy:encode(JsonTerm);
+pack_(json, JsonMap) when is_map(JsonMap)-> jiffy:encode(JsonMap);
 pack_(atom, Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
 pack_(pos_integer, PosInteger) when PosInteger > 0 -> pack_(integer, PosInteger);
 pack_(neg_integer, NegInteger) when NegInteger < 0 -> pack_(integer, NegInteger);
