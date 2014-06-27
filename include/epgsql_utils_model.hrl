@@ -8,6 +8,6 @@
 
 -type json_value() :: 'null' | binary() | boolean() | number() | [json_value()] | json_object().
 -type json_object() :: #{atom() | binary() => json_value()}.
--type json() :: json_object().
+-type json() :: json_value().
 
 -endif.
