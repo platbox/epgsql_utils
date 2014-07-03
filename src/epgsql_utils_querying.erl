@@ -110,7 +110,7 @@ acquire_conn(PoolName) ->
         put_context(C),
         C
     catch
-        exit:{noproc,_} ->
+        exit:{Reason,_} when Reason =:= noproc orelse Reason =:= timeout->
             timer:sleep(?RETRYING_DELAY),
             acquire_conn(PoolName)
     end.
@@ -120,5 +120,6 @@ release_conn(PoolName, C) ->
         put_context(undefined),
         epgsql_utils_conn_pool:release_conn(PoolName, C)
     catch
-        exit:{noproc,_} -> ok
+        exit:{Reason,_} when Reason =:= noproc orelse Reason =:= timeout -> ok
     end.
+
