@@ -11,8 +11,20 @@ parse_transform(AST, _Options) ->
         RecordsMap = get_records_map(AST),
         RecordsInfo = get_records_info(AST, RecordsMap),
 
-        Exports = lists:map(fun({Name, Arity}) -> compose_export(Name, Arity) end, [{struct_info, 1}]),
-        Funcs = lists:map(fun(FunName) -> compose_fun(FunName, RecordsInfo, ModuleName) end, [struct_info, pack_record, unpack_record]),
+        Exports =
+            lists:map(
+                fun({Name, Arity}) ->
+                    compose_export(Name, Arity)
+                end,
+                [{struct_info, 1}]
+            ),
+        Funcs =
+            lists:map(
+                fun(FunName) ->
+                    compose_fun(FunName, RecordsInfo, ModuleName)
+                end,
+                [struct_info, pack_record, unpack_record]
+            ),
 
         {Body, End} = lists:split(ModuleNameLine + 1, AST),
         AST1 = Body ++ Exports ++ End,
@@ -182,7 +194,8 @@ compose_fun(Name = pack_record, RecordsInfo, ModuleName) ->
                 erl_syntax:clause(
                     [
                         erl_syntax:tuple([erl_syntax:atom(RecordName), erl_syntax:variable('F')]),
-                        erl_syntax:variable('V')
+                        erl_syntax:variable('V'),
+                        erl_syntax:variable('Ctx')
                     ],
                     [],
                     [
@@ -198,7 +211,8 @@ compose_fun(Name = pack_record, RecordsInfo, ModuleName) ->
                                         ]),
                                         erl_syntax:variable('F')
                                     ]),
-                                    erl_syntax:variable('V')
+                                    erl_syntax:variable('V'),
+                                    erl_syntax:variable('Ctx')
                                 ]
                             )
                         ])
@@ -207,7 +221,8 @@ compose_fun(Name = pack_record, RecordsInfo, ModuleName) ->
                 erl_syntax:clause(
                     [
                         erl_syntax:atom(RecordName),
-                        erl_syntax:variable('V')
+                        erl_syntax:variable('V'),
+                        erl_syntax:variable('Ctx')
                     ],
                     [],
                     [
@@ -220,7 +235,8 @@ compose_fun(Name = pack_record, RecordsInfo, ModuleName) ->
                                         erl_syntax:atom(ModuleName),
                                         erl_syntax:atom(RecordName)
                                     ]),
-                                    erl_syntax:variable('V')
+                                    erl_syntax:variable('V'),
+                                    erl_syntax:variable('Ctx')
                                 ]
                             )
                         ])
@@ -236,7 +252,8 @@ compose_fun(Name = pack_record, RecordsInfo, ModuleName) ->
         erl_syntax:clause(
             [
                 erl_syntax:variable('T'),
-                erl_syntax:variable('V')
+                erl_syntax:variable('V'),
+                erl_syntax:variable('Ctx')
             ],
             [],
             [
@@ -246,7 +263,7 @@ compose_fun(Name = pack_record, RecordsInfo, ModuleName) ->
                         erl_syntax:atom(error),
                         [
                             erl_syntax:atom(badarg),
-                            erl_syntax:list([erl_syntax:variable('T'), erl_syntax:variable('V')])
+                            erl_syntax:list([erl_syntax:variable('T'), erl_syntax:variable('V'), erl_syntax:variable('Ctx')])
                         ]
                     )
                 ])
@@ -263,7 +280,8 @@ compose_fun(Name = unpack_record, RecordsInfo, ModuleName) ->
                 erl_syntax:clause(
                     [
                         erl_syntax:tuple([erl_syntax:atom(RecordName), erl_syntax:variable('F')]),
-                        erl_syntax:variable('V')
+                        erl_syntax:variable('V'),
+                        erl_syntax:variable('Ctx')
                     ],
                     [],
                     [
@@ -279,7 +297,8 @@ compose_fun(Name = unpack_record, RecordsInfo, ModuleName) ->
                                         ]),
                                         erl_syntax:variable('F')
                                     ]),
-                                    erl_syntax:variable('V')
+                                    erl_syntax:variable('V'),
+                                    erl_syntax:variable('Ctx')
                                 ]
                             )
                         ])
@@ -288,7 +307,8 @@ compose_fun(Name = unpack_record, RecordsInfo, ModuleName) ->
                 erl_syntax:clause(
                     [
                         erl_syntax:atom(RecordName),
-                        erl_syntax:variable('V')
+                        erl_syntax:variable('V'),
+                        erl_syntax:variable('Ctx')
                     ],
                     [],
                     [
@@ -301,7 +321,8 @@ compose_fun(Name = unpack_record, RecordsInfo, ModuleName) ->
                                         erl_syntax:atom(ModuleName),
                                         erl_syntax:atom(RecordName)
                                     ]),
-                                    erl_syntax:variable('V')
+                                    erl_syntax:variable('V'),
+                                    erl_syntax:variable('Ctx')
                                 ]
                             )
                         ])
@@ -317,7 +338,8 @@ compose_fun(Name = unpack_record, RecordsInfo, ModuleName) ->
         erl_syntax:clause(
             [
                 erl_syntax:variable('T'),
-                erl_syntax:variable('V')
+                erl_syntax:variable('V'),
+                erl_syntax:variable('Ctx')
             ],
             [],
             [
@@ -327,7 +349,7 @@ compose_fun(Name = unpack_record, RecordsInfo, ModuleName) ->
                         erl_syntax:atom(error),
                         [
                             erl_syntax:atom(badarg),
-                            erl_syntax:list([erl_syntax:variable('T'), erl_syntax:variable('V')])
+                            erl_syntax:list([erl_syntax:variable('T'), erl_syntax:variable('V'), erl_syntax:variable('Ctx')])
                         ]
                     )
                 ])

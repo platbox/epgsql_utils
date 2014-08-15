@@ -4,7 +4,7 @@
         {
             "path": ".",
             "folder_exclude_patterns": [ "*.eunit", "log", "logs", "ebin", "plts", "rel_build" ],
-            "file_exclude_patterns"  : [ ".tags*", "gproc_dist*", "erl_crash.dump" ]
+            "file_exclude_patterns"  : [ ".tags*", "gproc_dist*", "erl_crash.dump", "*.beam" ]
         }
     ],
     "settings":
