@@ -2,19 +2,14 @@
 
 %% model record helper
 
--export([get_record_keys/2]).
+-export([get_keys/2]).
 
--spec get_record_keys(atom(), tuple()) -> list({atom(), term()}).
-get_record_keys({Mod, LocalType}, Record) when LocalType =:= element(1, Record)->
+-spec get_keys(atom(), tuple()) -> list({atom(), term()}).
+get_keys({Mod, LocalType}, Record) when LocalType =:= element(1, Record)->
     Fields = Mod:struct_info({LocalType, fields}),
     Keys = Mod:struct_info({LocalType, keys}),
-    lists:map(
-        fun({FieldName, N}) ->
-            RecordFieldN = N + 1,    %Record = {RecordName, Field1, Field2, Field3,..., FieldN}.
-            {FieldName, element(RecordFieldN, Record)}
-        end,
-        match_struct_info(1, Keys, Fields)
-    ).
+    % Record = {RecordName, Field1, Field2, Field3,..., FieldN}
+    [element(N + 1, Record) || {_FieldName, N} <- match_struct_info(1, Keys, Fields)].
 
 -spec match_struct_info(integer(), list(), list({_, _})) -> list({_, _}).
 match_struct_info(N, [F | Rest], [{F, _} | RestFields]) ->

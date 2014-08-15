@@ -37,7 +37,7 @@ unpack(T, V) ->
     unpack_record(T, V).
 %%
 
-get_record_keys_test() ->
+get_keys_test() ->
     Record = #dancer{id = 99, hobby = games},
-    Keys = epgsql_utils_record:get_record_keys({?MODULE, dancer}, Record),
-    ?assertEqual([{id, 99}], Keys).
+    Keys = epgsql_utils_record:get_keys({?MODULE, dancer}, Record),
+    ?assertEqual([99], Keys).
