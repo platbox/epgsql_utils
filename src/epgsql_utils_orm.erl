@@ -337,7 +337,7 @@ pack_(date, Date={_, _, _}) ->
 pack_(json, Json) when is_atom(Json)-> pack_(atom, Json);
 pack_(json, Json) when is_binary(Json)-> pack_(binary, Json);
 pack_(json, Json) when is_number(Json)-> pack_(number, Json);
-pack_(json, Json) when is_list(Json) -> jiffy:encode(Json);
+pack_(json, Json={List}) when is_list(List) -> jiffy:encode(Json);
 pack_(json_map, Json) when is_atom(Json)-> pack_(atom, Json);
 pack_(json_map, Json) when is_binary(Json)-> pack_(binary, Json);
 pack_(json_map, Json) when is_number(Json)-> pack_(number, Json);
