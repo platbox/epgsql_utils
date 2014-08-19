@@ -337,7 +337,11 @@ pack_(date, Date={_, _, _}) ->
 pack_(json, Json) when is_atom(Json)-> pack_(atom, Json);
 pack_(json, Json) when is_binary(Json)-> pack_(binary, Json);
 pack_(json, Json) when is_number(Json)-> pack_(number, Json);
-pack_(json, Json) when is_map(Json)-> jiffy:encode(Json);
+pack_(json, Json) when is_list(Json) -> jiffy:encode(Json);
+pack_(json_map, Json) when is_atom(Json)-> pack_(atom, Json);
+pack_(json_map, Json) when is_binary(Json)-> pack_(binary, Json);
+pack_(json_map, Json) when is_number(Json)-> pack_(number, Json);
+pack_(json_map, Json) when is_map(Json) -> jiffy:encode(Json);
 pack_(atom, Atom) when is_atom(Atom) -> atom_to_binary(Atom, utf8);
 pack_(pos_integer, PosInteger) when PosInteger > 0 -> pack_(integer, PosInteger);
 pack_(neg_integer, NegInteger) when NegInteger < 0 -> pack_(integer, NegInteger);
@@ -372,7 +376,8 @@ unpack_(binary, Binary) when is_binary(Binary) -> Binary;
 unpack_(term, Term) -> binary_to_term(Term);
 unpack_(date, Date={_, _, _}) ->
     Date;
-unpack_(json, Json)-> jiffy:decode(Json, [return_maps]);
+unpack_(json, Json) -> jiffy:decode(Json);
+unpack_(json_map, Json) -> jiffy:decode(Json, [return_maps]);
 unpack_(atom, Atom) when is_binary(Atom) -> binary_to_atom(Atom, utf8) ;
 unpack_(pos_integer, PosInteger) when PosInteger > 0 -> unpack_(integer, PosInteger);
 unpack_(neg_integer, NegInteger) when NegInteger < 0 -> unpack_(integer, NegInteger);
