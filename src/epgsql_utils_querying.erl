@@ -29,7 +29,6 @@ do_transaction(PoolName, Fun) ->
 do_transaction(_PoolName, _Fun, 0, _Delay) ->
     throw({epgsql_error, 'transaction retrying attempts limit hit'});
 do_transaction(PoolName, Fun, Retries, Delay) ->
-    check_context_is_empty(),
     C = acquire_conn(PoolName),
     try
         transaction('begin'),
@@ -87,27 +86,12 @@ do_equery_(C, Q, A) ->
 
 %% local
 get_and_check_context() ->
-    case get_context() of
-        undefined -> error('epgsql query runs without do context');
-        V         -> V
-    end.
-
-check_context_is_empty() ->
-    case get_context() of
-        undefined -> ok;
-        C         -> exit({context_is_not_empty, C})
-    end.
-
-get_context() ->
-    get(epgsql_utils_querying_context).
-
-put_context(C) ->
-    put(epgsql_utils_querying_context, C).
+    get_conn().
 
 acquire_conn(PoolName) ->
     try
         C = epgsql_utils_conn_pool:acquire_conn(PoolName),
-        put_context(C),
+        put_conn(C),
         C
     catch
         exit:{Reason,_} when Reason =:= noproc orelse Reason =:= timeout->
@@ -117,9 +101,38 @@ acquire_conn(PoolName) ->
 
 release_conn(PoolName, C) ->
     try
-        put_context(undefined),
+        pop_conn(),
         epgsql_utils_conn_pool:release_conn(PoolName, C)
     catch
         exit:{Reason,_} when Reason =:= noproc orelse Reason =:= timeout -> ok
     end.
 
+%% connection level
+get_conn() ->
+    case get_context() of
+        [C|_] -> C;
+        _       -> error('epgsql context is undefined')
+    end.
+
+put_conn(C) ->
+    put_context(
+        case get_context() of
+            undefined -> [C];
+            Ctx       -> [C|Ctx]
+        end
+    ).
+
+pop_conn() ->
+    put_context(
+        case get_context() of
+            [_|Ctx] -> Ctx;
+            _       -> error('epgsql context is undefined')
+        end
+    ).
+
+%% context level
+get_context() ->
+    get(epgsql_utils_querying_context).
+
+put_context(C) ->
+    put(epgsql_utils_querying_context, C).
