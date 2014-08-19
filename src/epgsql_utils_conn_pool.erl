@@ -68,7 +68,10 @@ start_link(ConnParams) ->
             proplists:get_value(hostname, ConnParams, "localhost"),
             proplists:get_value(username, ConnParams, "test"     ),
             proplists:get_value(password, ConnParams, "test"     ),
-            [{database, proplists:get_value(database, ConnParams, "test")}]
+            [
+                {port, proplists:get_value(port, ConnParams, 5432)},
+                {database, proplists:get_value(database, ConnParams, "test")}
+            ]
         ),
     case R of
         {ok, Pid} ->
