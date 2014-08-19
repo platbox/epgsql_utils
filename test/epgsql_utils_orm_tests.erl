@@ -25,7 +25,7 @@ pack_test() ->
     ],
     lists:foreach(
         fun({Type, Before, After}) ->
-            ?assertEqual(After, epgsql_utils_orm:pack({epgsql_utils_orm, Type}, Before, context))
+            ?assertEqual(After, epgsql_utils_orm:pack({epgsql_utils_orm, Type}, Before))
         end,
         FixtureData
     ).
@@ -51,7 +51,7 @@ unpack_test() ->
     ],
     lists:foreach(
         fun({Type, Before, After}) ->
-            ?assertEqual(After, epgsql_utils_orm:unpack({epgsql_utils_orm, Type}, Before, context))
+            ?assertEqual(After, epgsql_utils_orm:unpack({epgsql_utils_orm, Type}, Before))
         end,
         FixtureData
     ).
