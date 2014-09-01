@@ -3,8 +3,8 @@
 
 -export([select    /4]).
 -export([update    /3]).
--export([insert    /2]).
--export([minsert   /2]).
+-export([insert    /3]).
+-export([minsert   /3]).
 -export([delete    /2]).
 -export([make_where/1]).
 -export([quote     /1]).
@@ -34,15 +34,16 @@ update(Table, FieldsValues, Cond) ->
     <<";">>],
     {Q, Args0 ++ Args1}.
 
-insert(Table, FieldValues) ->
-    minsert(Table, [FieldValues]).
+insert(Table, IDFields, FieldValues) ->
+    minsert(Table, IDFields, [FieldValues]).
 
-minsert(Table, RowsValues = [FieldValues | _]) ->
+minsert(Table, IDFields, RowsValues = [FieldValues | _]) ->
     {Values, Args} = make_minsert_values(RowsValues),
     Q = [
         <<"INSERT INTO ">>, prepare_table_name(Table),
         <<"(">>, prepare_field_names(FieldValues), <<") ">>,
         Values,
+        <<" RETURNING ">>, join_iolist(<<",">>, [to_binary(Name) || Name <- IDFields]),
     <<";">>],
     {Q, Args}.
 

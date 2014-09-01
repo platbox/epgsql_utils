@@ -10,8 +10,8 @@
 -export([find                 /2]).
 -export([is_exist             /2]).
 -export([create               /2]).
--export([package_create       /2]).
--export([package_create       /3]).
+-export([batch_create         /2]).
+-export([batch_create         /3]).
 -export([create_or_update     /3]).
 -export([get                  /2]).
 -export([get_by_cond          /2]).
@@ -21,9 +21,6 @@
 -export([update               /2]).
 -export([delete_by_cond       /2]).
 -export([delete               /2]).
--export([package_delete       /2]).
--export([package_delete       /3]).
--export([get_last_create_id   /0]).
 -export([count                /1]).
 -export([count_by_cond        /2]).
 
@@ -55,17 +52,10 @@ get_fields_by_cond(Type, Conds, Fields, Opts) ->
         _  ->
             check_fields(Type, Fields),
             Rows = q(make_select(Type, Fields, Conds, Opts)),
-            lists:map(
-                fun(Row) ->
-                    lists:map(
-                        fun({F, V}) ->
-                            {F, unpack({Type, F}, V)}
-                        end,
-                        lists:zip(Fields, tuple_to_list(Row))
-                    )
-                end,
-                Rows
-            )
+            [
+                [{F, unpack({Type, F}, V)} || {F, V} <- lists:zip(Fields, tuple_to_list(Row))]
+                    || Row <- Rows
+            ]
     end.
 
 
@@ -90,49 +80,25 @@ check_fields(Type, RequestedFields) ->
         end
     end, RequestedFields).
 
-%%package functions
-package_create(Type, ObjectList) ->
-    package_create(Type, ObjectList, 20000).
+batch_create(Type, ObjectList) ->
+    batch_create(Type, ObjectList, 10000).
 
-package_create(Type, ObjectList, PackageSize) ->
-    package_create(Type, ObjectList, PackageSize, [], 0).
+batch_create(Type, ObjectList, BatchSize) ->
+    batch_create_(Type, ObjectList, BatchSize, [], 0, 0).
 
-package_create(Type, ObjectList, PackageSize, Package, PackageSize) ->
-    Query = epgsql_utils_sql:minsert(struct_info(table, Type), Package),
-    q(Query),
-    package_create(Type, ObjectList, PackageSize, [], 0);
-package_create(Type, [H | T], PackageSize, Acc, CurrQuery) ->
-    package_create(Type, T, PackageSize, [pack(Type, H) | Acc], CurrQuery + 1);
-package_create(_, [], _, [], _) ->
-    0;
-package_create(Type, [], _, Package, _) ->
-    Query = epgsql_utils_sql:minsert(struct_info(table, Type), Package),
-    q(Query).
-
-
-package_delete(Type, IdList) ->
-    package_delete(Type, IdList, 1000).
-
-package_delete(Type, IdList, PackageSize) ->
-    package_delete(Type, IdList, PackageSize, [], 0).
-
-package_delete(Type, [H | T], PackageSize, QueryIOList, PackageSize) ->
-    DeleteQuery = epgsql_utils_sql:delete(struct_info(table, Type),
-                                          make_fields_cond(struct_info(keys, Type), H)
-                                         ),
-    q(QueryIOList),
-    package_delete(Type, T, PackageSize, [DeleteQuery], 1);
-package_delete(Type, [H | T], PackageSize, QueryIOList, CurrQuery) ->
-    DeleteQuery = epgsql_utils_sql:delete(struct_info(table, Type),
-                                          make_fields_cond(struct_info(keys, Type), H)
-                                         ),
-    package_delete(Type, T, PackageSize, [DeleteQuery, QueryIOList], CurrQuery + 1);
-package_delete(_, [], _, QueryIOList, _) ->
-    q(QueryIOList).
-
-
+batch_create_(Type, ObjectList, BatchSize, Batch, BatchSize, Total) ->
+    _ = q(make_minsert(Type, Batch)),
+    batch_create_(Type, ObjectList, BatchSize, [], 0, Total);
+batch_create_(Type, [H | T], BatchSize, Acc, CurrSize, Total) ->
+    batch_create_(Type, T, BatchSize, [pack(Type, H) | Acc], CurrSize + 1, Total + 1);
+batch_create_(_, [], _, [], _, Total) ->
+    Total;
+batch_create_(Type, [], _, Batch, _, Total) ->
+    _ = q(make_minsert(Type, Batch)),
+    Total.
 
 %% find
+
 find(Type, Conds) ->
     q(make_select(Type, get_struct_fields_names(Type), Conds, [])).
 
@@ -144,11 +110,16 @@ is_exist(Type, ID) ->
 
 %% insert
 create(Type, Object) ->
-    1 = q(epgsql_utils_sql:insert(struct_info(table, Type), pack(Type, Object))).
+    [IDTuple] = q(make_insert(Type, Object)),
+    FieldList = lists:zip(struct_info(keys, Type), tuple_to_list(IDTuple)),
+    case [unpack({Type, F}, V) || {F, V} <- FieldList] of
+        [ID] -> ID;
+        IDList -> IDList
+    end.
 
 create_or_update(Type, ID, Object) ->
     case is_exist(Type, ID) of
-        true  -> update(Type, Object);
+        true  -> update(Type, Object), ID;
         false -> create(Type, Object)
     end.
 
@@ -160,12 +131,8 @@ get_by_cond(Type, Conds, Opts) ->
     unpack_objects(Type, q(make_select(Type, get_struct_fields_names(Type), Conds, Opts))).
 
 unpack_objects(Type, Data) ->
-    map_selected(
-        fun(PL) ->
-            unpack(Type, lists:zip(get_struct_fields_names(Type), tuple_to_list(PL)))
-        end,
-        Data
-    ).
+    FieldNames = get_struct_fields_names(Type),
+    [unpack(Type, lists:zip(FieldNames, tuple_to_list(PL))) || PL <- Data].
 
 get(Type, ID) ->
     get_by_cond(Type, make_fields_cond(struct_info(keys, Type), ID)).
@@ -182,8 +149,7 @@ count_by_cond(Type, Conds) ->
 
 
 count(Type) ->
-    [{N}] = q(make_select(Type, ["count(*)"], [], [])),
-    N.
+    count_by_cond(Type, []).
 
 %% update
 update_by_cond(Type, Object, Cond) ->
@@ -200,10 +166,6 @@ delete(Type, ID) ->
     q(epgsql_utils_sql:delete(struct_info(table, Type),
         make_fields_cond(struct_info(keys, Type), ID)
     )).
-
-get_last_create_id() ->
-    [{ID}] = epgsql_utils_querying:do_query(<<"SELECT LASTVAL();">>),
-    ID.
 
 %% utils
 make_fields_cond(Fields, Values) when is_list(Values), is_list(Fields) ->
@@ -241,10 +203,9 @@ make_select(Type, Fields, Conds, Opts) ->
 
 make_update_object(Type, Object) ->
     PackedObject = pack(Type, Object),
-    PackedConds  = pack_conds(Type, lists:map(
-        fun(KeyPart) -> {KeyPart, '=', proplists:get_value(KeyPart, PackedObject)} end,
-        struct_info(keys, Type)
-    )),
+    PackedConds  = pack_conds(Type, [
+        {KeyPart, '=', proplists:get_value(KeyPart, PackedObject)} || KeyPart <- struct_info(keys, Type)
+    ]),
     epgsql_utils_sql:update(struct_info(table, Type), PackedObject, PackedConds).
 
 make_update_object(Type, Object, Conds) ->
@@ -254,24 +215,20 @@ make_update_object(Type, Object, Conds) ->
 
 make_update_proplist(Type, FieldsValues, Conds) ->
     PackedConds = pack_conds(Type, Conds),
-    PackedFieldsValues = lists:map( fun({F, V}) -> {F, pack({Type, F}, V)} end,
-                                    FieldsValues
-                                  ),
+    PackedFieldsValues = [{F, pack({Type, F}, V)} || {F, V} <- FieldsValues],
     epgsql_utils_sql:update(struct_info(table, Type), PackedFieldsValues, PackedConds).
+
+make_insert(Type, Object) ->
+    epgsql_utils_sql:insert(struct_info(table, Type), struct_info(keys, Type), pack(Type, Object)).
+
+make_minsert(Type, Batch) ->
+    epgsql_utils_sql:minsert(struct_info(table, Type), struct_info(keys, Type), Batch).
 
 make_delete(Type, Conds) ->
     PackedConds = pack_conds(Type, Conds),
     epgsql_utils_sql:delete(struct_info(table, Type), PackedConds).
 
-
-map_selected(MapF, L) ->
-    lists:foldr(
-        fun(E, Acc) ->
-                [MapF(E)|Acc]
-        end,
-        [],
-        L
-    ).
+%%
 
 pack_record_field({Type, FieldName}, V) ->
     FieldType = proplists:get_value(FieldName, struct_info(fields, Type)),
@@ -293,13 +250,10 @@ unpack_record_field({Type, FieldName}, V) ->
 
 unpack_record(Type={Mod, LocalType}, V) ->
     FieldsTypes = struct_info(fields, Type),
-    FieldsValues =
-        lists:map(
-            fun({FieldName, _}) ->
-                unpack({Mod, {LocalType, FieldName}}, proplists:get_value(FieldName, V, null))
-            end,
-            FieldsTypes
-        ),
+    FieldsValues = [
+        unpack({Mod, {LocalType, FieldName}}, proplists:get_value(FieldName, V, null))
+            || {FieldName, _} <- FieldsTypes
+    ],
     list_to_tuple([LocalType|FieldsValues]).
 
 q({Q, A}) ->
@@ -312,6 +266,7 @@ struct_info(Attr, {Mod, LocalType}) ->
     Mod:struct_info({LocalType, Attr}).
 
 %% packer
+
 pack({?MODULE, T}, V) ->
     pack_(T, V);
 pack({{Mod, T}, F}, V) ->

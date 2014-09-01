@@ -63,7 +63,9 @@ transaction(Action) ->
 do_equery_(C, Q, A) ->
     lager:debug("DB equery: \"~s\", ~p", [Q, A]),
     R = try pgsql:equery(C, Q, A) of
-            {ok, _, R_} ->
+            {ok, _N, _Cols, R_} ->
+                R_;
+            {ok, _Cols, R_} ->
                 R_;
             {ok, R_} ->
                 R_;
