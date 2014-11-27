@@ -75,7 +75,9 @@ start_link(ConnParams) ->
         ),
     case R of
         {ok, Pid} ->
-            %% TODO callback here
+            pgsql:squery(Pid, "BEGIN"),
+            [pgsql:squery(Pid, SQL) || SQL <- proplists:get_value(start_sql, ConnParams, [])],
+            pgsql:squery(Pid, "COMMIT"),
             {ok, Pid};
         Error={error, _} ->
             Error
