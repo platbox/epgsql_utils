@@ -61,6 +61,13 @@ init({PoolName, Options}) ->
 
 
 %%
+%% Example of DB setup function
+%%
+% db_setup_fun(Connection, Args) ->
+%    pgsql:squery(Connection, "set timezone to 'Europe/Moscow';").
+
+
+%%
 %% Poolboy worker callbacks
 %%
 start_link(ConnParams) ->
@@ -75,9 +82,14 @@ start_link(ConnParams) ->
         ),
     case R of
         {ok, Pid} ->
-            pgsql:squery(Pid, "BEGIN"),
-            [pgsql:squery(Pid, SQL) || SQL <- proplists:get_value(start_sql, ConnParams, [])],
-            pgsql:squery(Pid, "COMMIT"),
+            case proplists:get_value(db_setup_fun, ConnParams) of
+                {Mod, Fun, Args} ->
+                    pgsql:squery(Pid, "BEGIN"),
+                    Mod:Fun(Pid, Args),
+                    pgsql:squery(Pid, "COMMIT");
+                undefined -> 
+                    skip
+            end,
             {ok, Pid};
         Error={error, _} ->
             Error
