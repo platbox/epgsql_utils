@@ -43,7 +43,7 @@ db_test_() ->
     {setup, spawn,
         fun () ->
             Apps = [lager],
-            _ = [application:start(A) || A <- Apps],
+            _ = [application:ensure_all_started(A) || A <- Apps],
             _ = lager:set_loglevel(lager_console_backend, debug),
             {ok, Pid} = epgsql_utils_supervisor2:start_link(epgsql_utils_conn_pool, {?MODULE, options()}),
             {Apps, Pid}
