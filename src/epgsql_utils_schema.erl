@@ -14,10 +14,7 @@
 %% schema managment API
 prepare(Name, MigrateMFAs) ->
     lager:info("preparing schema..."),
-    case is_exist(Name) of
-        false -> q([<<"CREATE SCHEMA ">>, Name, <<";">>]);
-        true  -> ok
-    end,
+    q([<<"CREATE SCHEMA IF NOT EXISTS ">>, Name, <<";">>]),
     case is_initialized(Name) of
         false -> init(Name);
         true -> ok
@@ -26,10 +23,7 @@ prepare(Name, MigrateMFAs) ->
 
 drop(Name) ->
     lager:info("dropping schema..."),
-    case is_exist(Name) of
-        false -> ok;
-        true  -> q([<<"DROP SCHEMA ">>, Name, <<" CASCADE;">>])
-    end.
+    q([<<"DROP SCHEMA IF EXISTS ">>, Name, <<" CASCADE;">>]).
 
 upgrade(Name, MigrateMFAs) ->
     upgrade(Name, MigrateMFAs, last_rev(MigrateMFAs)).
@@ -46,12 +40,6 @@ upgrade(Name, MigrateMFAs, N) ->
 %%
 %% local
 %%
-is_exist(Name) ->
-    Q = [<<"SELECT true FROM information_schema.schemata WHERE schema_name = '">>, Name, <<"';">>],
-    case q(Q) of
-        [{true}] -> true;
-        [      ] -> false
-    end.
 
 init(Name) ->
     q([<<"CREATE TABLE ">>, Name, <<".schema_rev(rev integer);">>]),
