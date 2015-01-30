@@ -17,6 +17,7 @@
 -export([get_by_cond          /2]).
 -export([get_by_cond          /3]).
 -export([get_by_fields        /3]).
+-export([unpack_objects       /2]).
 -export([update_by_cond       /3]).
 -export([update               /2]).
 -export([delete_by_cond       /2]).
