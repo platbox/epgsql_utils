@@ -123,6 +123,8 @@ make_where([], N) ->
 make_where(Conds, N) ->
     F = fun ({V1, '=', null}, {Q, Args, NAcc}) ->
                 {Q ++ [[to_binary(V1), <<" is null">>]], Args, NAcc};
+            ({V1, '<>', null}, {Q, Args, NAcc}) ->
+                {Q ++ [[to_binary(V1), <<" is not null">>]], Args, NAcc};
             ({V1, Op, V2}, {Q, Args, NAcc}) ->
                 {Q ++ [[to_binary(V1), to_binary(Op), <<"$">>, integer_to_binary(NAcc)]], Args ++ [V2], NAcc + 1};
             (V, {Q, Args, NAcc}) ->
