@@ -14,7 +14,8 @@
     id          :: key(pos_integer()),
     type        :: ?MODULE:htype(),
     offender    :: binary(),
-    penalty     :: non_neg_integer()
+    penalty     :: non_neg_integer(),
+    magic       :: [json()]
 }).
 
 -record(nonsence, {
@@ -77,7 +78,8 @@ prepare_schema() ->
         "id bigserial primary key,"
         "type varchar(64) not null,"
         "offender text not null,"
-        "penalty integer"
+        "penalty integer,"
+        "magic text[]"
     ");">>),
     epgsql_utils_querying:do_query(<<"create table ", ?MODULE_STRING, $., "nonsences (",
         "foo timestamp without time zone not null,"
@@ -102,10 +104,11 @@ test_create() ->
 
 test_update() ->
     Type = {?MODULE, harassment},
-    ID = epgsql_utils_orm:create(Type, #harassment{type = sexual, offender = <<"Lil' Schukovsky">>}),
+    Magic = [#{}, #{<<"boo">> => <<"yah">>}, null],
+    ID = epgsql_utils_orm:create(Type, #harassment{type = sexual, offender = <<"Lil' Schukovsky">>, magic = Magic}),
     ?assertEqual(ID, epgsql_utils_orm:create_or_update(Type, ID, #harassment{id = ID, type = other, offender = <<"Lil' B Sides">>})),
-    ?assertEqual(1, epgsql_utils_orm:update_fields(Type, ID, [{penalty, 42}])),
-    ?assertEqual([#harassment{id = ID, type = other, offender = <<"Lil' B Sides">>, penalty = 42}], epgsql_utils_orm:get(Type, ID)).
+    ?assertEqual(1, epgsql_utils_orm:update_fields(Type, ID, [{penalty, 42}, {magic, Magic}])),
+    ?assertEqual([#harassment{id = ID, type = other, offender = <<"Lil' B Sides">>, penalty = 42, magic = Magic}], epgsql_utils_orm:get(Type, ID)).
 
 test_fields() ->
     Type = {?MODULE, harassment},
