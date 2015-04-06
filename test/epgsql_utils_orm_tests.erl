@@ -19,7 +19,9 @@
 
 -record(nonsence, {
     foo         :: key(datetime()),
-    bar         :: key(binary())
+    bar         :: key(binary()),
+    fo          :: date(),
+    oo          :: time()
 }).
 
 -type htype() :: sexual | other.
@@ -80,6 +82,8 @@ prepare_schema() ->
     epgsql_utils_querying:do_query(<<"create table ", ?MODULE_STRING, $., "nonsences (",
         "foo timestamp without time zone not null,"
         "bar varchar(64) not null,"
+        "fo date,"
+        "oo time,"
         "primary key (foo, bar)"
     ");">>).
 
@@ -113,9 +117,14 @@ test_fields() ->
 
 test_batch() ->
     Type = {?MODULE, nonsence},
-    Objects = [#nonsence{foo = calendar:local_time(), bar = integer_to_binary(N)} || N <- lists:seq(1, 20)],
+    Datetime = {Date, Time} = calendar:local_time(),
+    Objects = [#nonsence{foo = Datetime, bar = integer_to_binary(N), fo = Date, oo = Time} || N <- lists:seq(1, 20)],
     ?assertEqual(20, epgsql_utils_orm:batch_create(Type, Objects, 3)),
-    ?assertEqual(20, epgsql_utils_orm:count(Type)).
+    ?assertEqual(20, epgsql_utils_orm:count(Type)),
+    ?assertMatch(
+        [#nonsence{foo = Datetime, fo = Date, oo = Time}],
+        epgsql_utils_orm:get_by_cond(Type, [], [{limit, 1}])
+    ).
 
 %%
 
