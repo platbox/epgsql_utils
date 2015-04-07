@@ -13,6 +13,7 @@
 -record(dancer, {
     id::key(pos_integer()),
     name::string(),
+    aliases::[string()],
     age::non_neg_integer(),
     hobby::?MODULE:hobby()
 }).
@@ -45,6 +46,6 @@ struct_info_test() ->
     ).
 
 pack_external_type_test() ->
-    Record = #dancer{id = 42, hobby = {hooker, <<"Tracey">>}},
+    Record = #dancer{id = 42, hobby = {hooker, <<"Tracey">>}, aliases = [<<"Mr.">>, <<"Nicolas">>, <<"Cage">>]},
     Packed = epgsql_utils_orm:pack({?MODULE, dancer}, Record),
     ?assertEqual(Record, epgsql_utils_orm:unpack({?MODULE, dancer}, Packed)).

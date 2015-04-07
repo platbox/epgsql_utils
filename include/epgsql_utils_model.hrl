@@ -4,6 +4,7 @@
 -type key(T) :: T.
 
 -type date() :: calendar:date().
+-type time() :: calendar:time().
 -type datetime() :: calendar:datetime().
 
 -type json_value() :: 'null' | binary() | boolean() | number() | [json_value()] | json_object().
