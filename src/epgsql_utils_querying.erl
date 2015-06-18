@@ -7,7 +7,8 @@
 -export([do_transaction/2]).
 -export([do_transaction/4]).
 
--define(RETRYING_DELAY, 250).
+-define(RETRY_DELAY       , 1000).
+-define(RETRY_SWEAR_AFTER , 3).
 
 %%
 %% API
@@ -107,14 +108,19 @@ put_context(C) ->
     put(epgsql_utils_querying_context, C).
 
 acquire_conn(PoolName) ->
+    acquire_conn(PoolName, 1).
+
+acquire_conn(PoolName, N) ->
     try
         C = epgsql_utils_conn_pool:acquire_conn(PoolName),
         put_context(C),
         C
     catch
-        exit:{Reason,_} when Reason =:= noproc orelse Reason =:= timeout->
-            timer:sleep(?RETRYING_DELAY),
-            acquire_conn(PoolName)
+        exit:{Reason,_} when Reason =:= noproc orelse Reason =:= timeout ->
+            N > ?RETRY_SWEAR_AFTER andalso
+                lager:error("could not acquire connection after ~B attempts, keep trying ...", [N]),
+            timer:sleep(?RETRY_DELAY),
+            acquire_conn(PoolName, N + 1)
     end.
 
 release_conn(PoolName, C) ->
