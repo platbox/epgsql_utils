@@ -268,6 +268,8 @@ struct_info(Attr, {Mod, LocalType}) ->
 
 %% packer
 
+pack({?MODULE, T}, LV) when is_list(LV) ->
+    [pack_(T, V) || V <- LV];
 pack({?MODULE, T}, V) ->
     pack_(T, V);
 pack({{Mod, T}, F}, V) ->

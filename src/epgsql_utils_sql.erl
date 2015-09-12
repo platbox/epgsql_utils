@@ -125,6 +125,8 @@ make_where(Conds, N) ->
                 {Q ++ [[to_binary(V1), <<" is null">>]], Args, NAcc};
             ({V1, '<>', null}, {Q, Args, NAcc}) ->
                 {Q ++ [[to_binary(V1), <<" is not null">>]], Args, NAcc};
+            ({V1, 'in', V2}, {Q, Args, NAcc}) ->
+                {Q ++ [[to_binary(V1), <<" in (">>, make_placeholder_list(V2), <<") ">>]], Args ++ V2, NAcc + 1};
             ({V1, Op, V2}, {Q, Args, NAcc}) ->
                 {Q ++ [[to_binary(V1), to_binary(Op), <<"$">>, integer_to_binary(NAcc)]], Args ++ [V2], NAcc + 1};
             (V, {Q, Args, NAcc}) ->
@@ -133,6 +135,8 @@ make_where(Conds, N) ->
     {CondsQ, Args, N1} = lists:foldl(F, {[], [], N}, Conds),
     {[<<" WHERE ">>, join_iolist(<<" AND ">>, CondsQ)], Args, N1}.
 
+make_placeholder_list(V) ->
+    join_iolist(<<",">>, [iolist_to_binary([<<"$">>, genlib:to_binary(N)]) || N <- lists:seq(1, length(V))]).
 
 quote(String) when is_list(String) ->
     [$' | lists:reverse([$' | quote(String, [])])];
