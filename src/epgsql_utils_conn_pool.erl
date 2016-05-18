@@ -20,6 +20,7 @@
     | {username, string()}
     | {password, string()}
     | {database, string()}
+    | {ssl, boolean()}
 .
 -type conn_params() :: list(conn_param()).
 
@@ -77,6 +78,7 @@ start_link(ConnParams) ->
             proplists:get_value(password, ConnParams, "test"     ),
             [
                 {port, proplists:get_value(port, ConnParams, 5432)},
+                {ssl, proplists:get_value(ssl,ConnParams, false)},
                 {database, proplists:get_value(database, ConnParams, "test")}
             ]
         ),
