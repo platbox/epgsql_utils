@@ -50,6 +50,15 @@ parse_record_fields_(_, Acc = {_, _}) ->
     Acc.
 
 -spec parse_field_type(tuple()) -> {{atom(), atom()}, list()}.
+parse_field_type({user_type,_ ,key, [Type]}) ->
+    {T, _} = parse_field_type(Type),
+    {T, [{key, true}]};
+parse_field_type({user_type, _, list, [Type]}) ->
+    {T, _} = parse_field_type(Type),
+    {{epgsql_utils_orm, {list, T}}, []};
+parse_field_type({user_type,_ ,Type,[]}) ->
+    {{epgsql_utils_orm, Type}, []};
+    
 parse_field_type({type,_ ,key, [Type]}) ->
     {T, _} = parse_field_type(Type),
     {T, [{key, true}]};
@@ -57,7 +66,7 @@ parse_field_type({type, _, list, [Type]}) ->
     {T, _} = parse_field_type(Type),
     {{epgsql_utils_orm, {list, T}}, []};
 parse_field_type({type,_ ,Type,[]}) ->
-    {{epgsql_utils_orm, Type}, []};
+    {{epgsql_utils_orm, Type}, []};    
 parse_field_type({remote_type, _ ,[{atom, _, M}, {atom, _, F}, []]}) ->
     {{M, F}, []};
 parse_field_type(T) ->
