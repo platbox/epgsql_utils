@@ -191,6 +191,8 @@ pack_conds(Type, Conds) when is_list(Conds) ->
 pack_conds(Type, Cond) ->
     pack_conds(Type, [Cond], []).
 
+pack_conds(Type, [{Field, Predicate, Values} | T], Acc) when is_list(Values) ->
+    pack_conds(Type, T, [{Field, Predicate, [pack({Type, Field}, E) || E <- Values]} | Acc]);
 pack_conds(Type, [{Field, Predicate, Value} | T], Acc) ->
     pack_conds(Type, T, [{Field, Predicate, pack({Type, Field}, Value)} | Acc]);
 pack_conds(_, [], Acc) ->
@@ -268,8 +270,6 @@ struct_info(Attr, {Mod, LocalType}) ->
 
 %% packer
 
-pack({?MODULE, T}, LV) when is_list(LV) ->
-    [pack_(T, V) || V <- LV];
 pack({?MODULE, T}, V) ->
     pack_(T, V);
 pack({{Mod, T}, F}, V) ->
