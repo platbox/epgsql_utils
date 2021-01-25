@@ -13,7 +13,6 @@
 
 %% schema managment API
 prepare(Name, MigrateMFAs) ->
-    lager:info("preparing schema..."),
     case is_exist(Name) of
         false -> q([<<"CREATE SCHEMA ">>, Name, <<";">>]);
         true  -> ok
@@ -25,7 +24,6 @@ prepare(Name, MigrateMFAs) ->
     upgrade(Name, MigrateMFAs).
 
 drop(Name) ->
-    lager:info("dropping schema..."),
     case is_exist(Name) of
         false -> ok;
         true  -> q([<<"DROP SCHEMA ">>, Name, <<" CASCADE;">>])
@@ -36,7 +34,7 @@ upgrade(Name, MigrateMFAs) ->
 upgrade(Name, MigrateMFAs, N) ->
     case get_rev(Name) of
         N ->
-            lager:info("schema is up to date :)");
+            ok;
         CurrentRev ->
             [upgrade_(MigrateMFAs, Rev) || Rev <- lists:seq(CurrentRev + 1, N)],
             set_rev(Name, N)
@@ -78,7 +76,6 @@ set_rev(Name, Rev) ->
     1 = q([<<"UPDATE ">>, Name, <<".schema_rev SET rev=$1;">>], [Rev]).
 
 upgrade_(MigrateMFAs, N) ->
-    lager:info("updating to revision ~p...", [N]),
     MFA = get_mfa(MigrateMFAs, N),
     apply_mfa(MFA).
 

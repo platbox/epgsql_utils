@@ -39,7 +39,6 @@ do_transaction(PoolName, Fun, Retries, Delay) ->
     catch
         throw:{epgsql_error, {unexpected_error, _}} ->
             release_conn(PoolName, C),
-            lager:warning("epgsql connection error, retrying after ~p ms...", [Delay]),
             timer:sleep(Delay),
             do_transaction(PoolName, Fun, Retries-1, Delay);
         T:E ->
@@ -60,7 +59,6 @@ transaction(Action) ->
 
 %% query
 do_equery_(C, Q, A) ->
-    lager:debug("DB equery: \"~s\", ~p", [Q, A]),
     R = try pgsql:equery(C, Q, A) of
             {ok, _, R_} ->
                 R_;
@@ -76,11 +74,8 @@ do_equery_(C, Q, A) ->
                 throw({epgsql_error, {unrecoverable_sql_error, Code, Desc}})
         catch
             Type:Error ->
-                lager:warning("epgsql query unexpected error ~p:~p", [Type, Error]),
-                lager:debug("epgsql query unexpected error ~p:~p ~n ** ~p", [Type, Error, erlang:get_stacktrace()]),
-                throw({epgsql_error, {unexpected_error, Error}})
+               throw({epgsql_error, {unexpected_error, Error}})
         end,
-    lager:debug("DB equery results: ~p", [R]),
     R.
 
 
